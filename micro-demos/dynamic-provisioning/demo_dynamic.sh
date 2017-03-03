@@ -15,54 +15,54 @@
 
 . $(dirname ${BASH_SOURCE})/../util.sh
 
-desc "There are just node disks in gcloud"
+desc "Check: there are just node disks in gcloud"
 run "gcloud compute disks list"
 
-desc "There are no storage classes"
+desc "Check: there are no storage classes"
 run "kubectl get storageclasses"
 
 NS="--namespace=demos"
 
-desc "There are no PVs or PVCs"
+desc "Check: there are no PVs or PVCs"
 run "kubectl ${NS} get pv,pvc"
 
-desc "Add a storage class"
+desc "STEP 1: add a storage class"
 run "cat $(relative storage_class.yaml)"
 run "kubectl apply -f storage_class.yaml"
 run "kubectl get storageclasses"
 
-desc "Add a PVC"
+desc "STEP 2: add a PVC"
 run "cat $(relative pvc_dynamic.yaml)"
 run "kubectl apply -f pvc_dynamic.yaml"
 
-desc "Wait for the PVC to bind"
+desc "Check: wait for the PVC to bind"
 while [ "$(kubectl ${NS} get pvc mypvc -o yaml | grep phase | cut -d: -f2 | tr -d [:space:])" != "Bound" ]; do
   run "kubectl ${NS} get pvc"
 done
 run "gcloud compute disks list"
 
-desc "Create a Pod"
+desc "STEP 3: use the PVC in a Pod"
 run "cat $(relative pod.yaml)"
 run "kubectl apply -f pod.yaml"
 
-desc "Check that the pod is running"
+desc "Check: that the pod is running"
 while [ "$(kubectl ${NS} get pod sleepypod -o yaml | grep phase | cut -d: -f2 | tr -d [:space:])" != "Running" ]; do
   run "kubectl ${NS} get pod sleepypod"
 done
 
-desc "Delete the Pod in Kubernetes and wait..."
+desc "SUCCESS! Now delete/destroy everything..."
 run "kubectl delete -f pod.yaml"
 desc "Make sure pod is deleted"
 while [ "$(kubectl ${NS} get pod sleepypod 2>/dev/null)" != "" ]; do
   run "kubectl ${NS} get pod sleepypod"
 done
 
-desc "The PVC exists, so the disk still exists"
+desc "Note: because the PVC still, the disk does too"
 run "gcloud compute disks list"
 
 desc "Delete the PVC"
 run "kubectl delete -f pvc_dynamic.yaml"
 
-desc "Now that the PVC is deleted the disk should be as well"
+desc "Check: the PVC is deleted the disk is as well"
 run "gcloud compute disks list"
 

@@ -15,59 +15,59 @@
 
 . $(dirname ${BASH_SOURCE})/../util.sh
 
-desc "There are just node disks in gcloud"
+desc "Check: there are just node disks in gcloud"
 run "gcloud compute disks list"
 
 NS="--namespace=demos"
 
-desc "There are no PVs"
+desc "Check: there are no PVs"
 run "kubectl get pv"
 
-desc "There are no PVCs"
+desc "Check: there are no PVCs"
 run "kubectl ${NS} get pvc"
 
 DISK="manual-disk-1"
-desc "Create a new disk in Google Cloud"
-run "gcloud compute disks create --size=200GB ${DISK}"
+desc "STEP 1: Create a new disk in Google Cloud"
+run "gcloud compute disks create --size=10GB ${DISK} --type=pd-ssd"
 
-desc "Make sure ${DISK} exists!"
+desc "Check: ${DISK} exists!"
 run "gcloud compute disks list"
 
-desc "Add a PV to Kubernetes"
+desc "STEP 2: Add a PV to Kubernetes"
 run "cat $(relative pv_manual.yaml)"
 run "kubectl apply -f pv_manual.yaml"
 
-desc "Make sure the PV exists"
+desc "Check: that the PV exists"
 run "kubectl get pv"
 
-desc "Claim the PV in Kubernetes"
+desc "STEP 3: bind the PV in Kubernetes"
 run "cat $(relative pvc_manual.yaml)"
 run "kubectl apply -f pvc_manual.yaml"
 
-desc "Check that the PV is bound to the PVC"
+desc "Check: the PV is bound to the PVC"
 run "kubectl ${NS} get pv,pvc"
 
-desc "Use the PVC in a Pod definition"
+desc "STEP 4: use the PVC in a Pod"
 run "cat $(relative pod.yaml)"
 run "kubectl apply -f pod.yaml"
 
-desc "Check that the pod is running"
+desc "Check: that the pod is running"
 while [ "$(kubectl ${NS} get pod sleepypod -o yaml | grep phase | cut -d: -f2 | tr -d [:space:])" != "Running" ]; do
   run "kubectl ${NS} get pod sleepypod"
 done
 
-desc "Delete the Pod in Kubernetes and wait..."
+desc "SUCCESS! Now delete/destroy everything..."
 run "kubectl delete -f pod.yaml"
-desc "Make sure pod is deleted"
+desc "Check: the pod is deleted"
 while [ "$(kubectl ${NS} get pod sleepypod 2>/dev/null)" != "" ]; do
   run "kubectl ${NS} get pod sleepypod"
 done
 
-desc "Now delete the PVC and PV in Kubernetes"
+desc "Delete the PVC and PV in Kubernetes"
 run "kubectl delete -f pvc_manual.yaml"
 run "kubectl delete -f pv_manual.yaml"
 run "kubectl ${NS} get pvc,pv"
 
-desc "...and delete the disk in GCP"
+desc "...and, finally, delete the disk in GCP"
 run "gcloud compute disks delete ${DISK}"
 run "gcloud compute disks list"
